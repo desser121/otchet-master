@@ -79,6 +79,10 @@ See `supabase/README.md` for local development and deployment of edge functions.
 - `feature/*` — new features
 - `fix/*` — bug fixes
 
+## Releases
+
+Releases are created by tagging `vX.Y.Z` on `main`. GitHub Actions builds a signed APK and attaches it to a GitHub Release for the test group. Details: [docs/deployment.md](docs/deployment.md).
+
 ## License
 
 [MIT](LICENSE)

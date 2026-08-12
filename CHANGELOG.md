@@ -12,3 +12,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial repository structure (docs, LICENSE, README).
 - Product definition and requirements (MVP scope).
 - Architecture overview and ADRs for mobile stack, backend, and storage.
+- Release process ADR (tag + GitHub Actions, APK for test group).

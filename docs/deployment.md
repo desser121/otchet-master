@@ -74,10 +74,45 @@ cd android
 | `AI_API_KEY` | секреты edge-функции | ключ AI |
 | `AI_MODEL` | секреты edge-функции | модель |
 
-## CI/CD
+## Релиз-процесс
 
-- MVP: ручной деплой (supabase CLI + gradle) — без CI до появления тестовой группы.
-- Позже: GitHub Actions (сборка + тесты; деплой edge-функций; публикация APK).
+- Распространение первых версий: **APK тестовой группе** (не Play Store).
+- Создание релиза: **тег `vX.Y.Z` запускает сборку** через GitHub Actions.
+
+Схема:
+
+```
+merge в main → push тег v0.1.0
+        │
+        ▼
+GitHub Actions (workflow "release")
+        │
+        ├── assembleRelease
+        ├── подпись (keystore из repo secrets)
+        ├── changelog из тега
+        └── GitHub Release + прикреплённый APK
+        │
+        ▼
+Тестовая группа устанавливает APK по ссылке
+```
+
+### Секреты репозитория (GitHub Actions)
+
+| Secret | Назначение |
+|---|---|
+| `ANDROID_KEYSTORE` | подписанный keystore (base64) |
+| `ANDROID_KEYSTORE_PASSWORD` | пароль keystore |
+| `ANDROID_KEY_ALIAS` | алиас ключа |
+| `ANDROID_KEY_PASSWORD` | пароль ключа |
+| `AI_API_KEY` (позже) | ключ AI-провайдера для edge-функции |
+
+Secrets шифруются GitHub и не попадают в репозиторий. Keystore генерируется один раз (`keytool`), хранится локально, в Git не загружается.
+
+### CI/CD
+
+- MVP: GitHub Actions: сборка release APK + тесты на PR в `develop`.
+- Деплой edge-функций: вручную через supabase CLI (или CI при появлении).
+- Позже (Play Store): сборка AAB + загрузка через service account.
 
 ## Дорожная карта заполнения этого документа
 
