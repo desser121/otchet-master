@@ -77,7 +77,7 @@ cd android
 ## Релиз-процесс
 
 - Распространение первых версий: **APK тестовой группе** (не Play Store).
-- Создание релиза: **тег `vX.Y.Z` запускает сборку** через GitHub Actions.
+- Создание релиза: **тег `vX.Y.Z` запускает сборку** через GitHub Actions (workflow `.github/workflows/release.yml`).
 
 Схема:
 
@@ -94,6 +94,14 @@ GitHub Actions (workflow "release")
         │
         ▼
 Тестовая группа устанавливает APK по ссылке
+```
+
+Локальная release-сборка с подписью:
+
+```bash
+export ANDROID_KEYSTORE_BASE64="$(base64 -w0 /путь/keystore.keystore)"
+export ANDROID_KEYSTORE_PASSWORD="... ANDROID_KEY_ALIAS=... ANDROID_KEY_PASSWORD=..."
+cd android && ./gradlew :app:assembleRelease
 ```
 
 ### Секреты репозитория (GitHub Actions)
