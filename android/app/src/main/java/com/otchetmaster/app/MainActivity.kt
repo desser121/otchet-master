@@ -9,9 +9,12 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.otchetmaster.app.ui.home.HomeScreen
+import com.otchetmaster.app.ui.home.HomeViewModelFactory
 import com.otchetmaster.app.ui.screens.PlaceholderScreen
 import com.otchetmaster.app.ui.screens.ProfileScreen
 import com.otchetmaster.app.ui.theme.OtchetMasterTheme
+import com.otchetmaster.app.updater.UpdateManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -19,7 +22,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             OtchetMasterTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    OtchetMasterApp()
+                    OtchetMasterApp(updateManager = UpdateManager(applicationContext))
                 }
             }
         }
@@ -27,7 +30,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun OtchetMasterApp() {
+fun OtchetMasterApp(updateManager: UpdateManager) {
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = "profile") {
         composable("profile") {
@@ -36,7 +39,13 @@ fun OtchetMasterApp() {
             )
         }
         composable("home") {
-            PlaceholderScreen("Главный экран — будет дальше")
+            HomeScreen(
+                viewModelFactory = HomeViewModelFactory(updateManager),
+                onNewJob = { navController.navigate("new-job") }
+            )
+        }
+        composable("new-job") {
+            PlaceholderScreen("Экран новой работы — будет дальше")
         }
     }
 }
