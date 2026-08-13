@@ -24,7 +24,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun ProfileScreen(onContinue: () -> Unit) {
+fun ProfileScreen(onSave: (name: String, phone: String, city: String) -> Unit) {
     var name by rememberSaveable { mutableStateOf("") }
     var phone by rememberSaveable { mutableStateOf("") }
     var city by rememberSaveable { mutableStateOf("") }
@@ -80,7 +80,7 @@ fun ProfileScreen(onContinue: () -> Unit) {
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = onContinue,
+                onClick = { onSave(name, phone, city) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
