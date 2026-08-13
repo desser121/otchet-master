@@ -1,6 +1,7 @@
 package com.otchetmaster.app.ui.job
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -30,8 +32,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.Card
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.otchetmaster.app.data.JobRepository
+import com.otchetmaster.app.data.MaterialRepository
 import com.otchetmaster.app.data.PhotoRepository
 import com.otchetmaster.app.data.ReportRepository
 import com.otchetmaster.app.data.local.PhotoEntity
@@ -75,7 +80,9 @@ fun JobDetailsScreen(
     jobId: String,
     jobRepository: JobRepository,
     photoRepository: PhotoRepository,
+    materialRepository: MaterialRepository,
     reportRepository: ReportRepository,
+    onOpenReport: () -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -83,9 +90,11 @@ fun JobDetailsScreen(
 
     val job by jobRepository.observeJob(jobId).collectAsState(initial = null)
     val photos by photoRepository.observeByJob(jobId).collectAsState(initial = emptyList())
+    val materials by materialRepository.observeByJob(jobId).collectAsState(initial = emptyList())
     val report by reportRepository.observeByJob(jobId).collectAsState(initial = null)
 
     var description by rememberSaveable(jobId) { mutableStateOf(report?.workPerformed ?: "") }
+    var materialInput by rememberSaveable(jobId) { mutableStateOf("") }
 
     LaunchedEffect(report) {
         val r = report
@@ -147,6 +156,31 @@ fun JobDetailsScreen(
         mutableStateOf<Uri?>(null)
     }
 
+    val speechLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val recognized = result.data
+            ?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)
+            ?.firstOrNull()
+        if (!recognized.isNullOrBlank()) {
+            val newText = if (description.isBlank()) recognized else description + "\n" + recognized
+            description = newText
+            saveDescription(newText)
+        }
+    }
+
+    fun startDictation() {
+        val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
+            putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "ru-RU")
+            putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Говорите описание работ")
+        }
+        speechLauncher.launch(intent)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -196,7 +230,12 @@ fun JobDetailsScreen(
                 label = { Text("Описание работ") },
                 placeholder = { Text("Что было сделано: демонтаж, электрика, отделка…") },
                 minLines = 5,
-                maxLines = 12
+                maxLines = 12,
+                trailingIcon = {
+                    IconButton(onClick = ::startDictation) {
+                        Icon(Icons.Filled.Mic, contentDescription = "Голосовой ввод")
+                    }
+                }
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -233,6 +272,57 @@ fun JobDetailsScreen(
                         }
                     )
                 }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text("Материалы", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            materials.forEach { m ->
+                Text(
+                    text = if (m.quantity != null) "• ${m.name} — ${m.quantity}" else "• ${m.name}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(vertical = 2.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = materialInput,
+                    onValueChange = { materialInput = it },
+                    modifier = Modifier.weight(1f),
+                    label = { Text("Название — количество") },
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        if (materialInput.isNotBlank()) {
+                            val name = materialInput.substringBefore("—").trim()
+                            val quantity = materialInput.substringAfter("—", "").trim()
+                            scope.launch {
+                                val updated = materials.map { it.name to (it.quantity ?: "") }
+                                    .plus(name to quantity)
+                                materialRepository.replaceAll(jobId, updated)
+                            }
+                            materialInput = ""
+                        }
+                    }
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Добавить материал")
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = onOpenReport,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Text("Создать отчёт", style = MaterialTheme.typography.titleMedium)
             }
             Spacer(modifier = Modifier.height(24.dp))
         }

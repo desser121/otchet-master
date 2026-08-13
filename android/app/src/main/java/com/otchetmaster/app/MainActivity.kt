@@ -19,7 +19,7 @@ import com.otchetmaster.app.ui.home.HomeScreen
 import com.otchetmaster.app.ui.home.HomeViewModelFactory
 import com.otchetmaster.app.ui.job.JobDetailsScreen
 import com.otchetmaster.app.ui.job.NewJobScreen
-import com.otchetmaster.app.ui.screens.PlaceholderScreen
+import com.otchetmaster.app.ui.report.ReportScreen
 import com.otchetmaster.app.ui.screens.ProfileScreen
 import com.otchetmaster.app.ui.theme.OtchetMasterTheme
 import kotlinx.coroutines.launch
@@ -92,6 +92,20 @@ fun OtchetMasterApp(app: OtchetMasterApplication) {
                 jobId = jobId,
                 jobRepository = app.jobRepository,
                 photoRepository = app.photoRepository,
+                materialRepository = app.materialRepository,
+                reportRepository = app.reportRepository,
+                onOpenReport = { navController.navigate("report/$jobId") },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("report/{jobId}") { entry ->
+            val jobId = entry.arguments?.getString("jobId").orEmpty()
+            ReportScreen(
+                jobId = jobId,
+                profileRepository = app.profileRepository,
+                jobRepository = app.jobRepository,
+                photoRepository = app.photoRepository,
+                materialRepository = app.materialRepository,
                 reportRepository = app.reportRepository,
                 onBack = { navController.popBackStack() }
             )

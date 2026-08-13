@@ -2,6 +2,8 @@ package com.otchetmaster.app.data
 
 import com.otchetmaster.app.data.local.JobDao
 import com.otchetmaster.app.data.local.JobEntity
+import com.otchetmaster.app.data.local.MaterialDao
+import com.otchetmaster.app.data.local.MaterialEntity
 import com.otchetmaster.app.data.local.MasterProfileDao
 import com.otchetmaster.app.data.local.MasterProfileEntity
 import com.otchetmaster.app.data.local.PhotoDao
@@ -80,5 +82,24 @@ class ReportRepository(private val dao: ReportDao) {
 
     suspend fun upsert(report: ReportEntity) {
         dao.upsert(report)
+    }
+}
+
+class MaterialRepository(private val dao: MaterialDao) {
+    fun observeByJob(jobId: String): Flow<List<MaterialEntity>> = dao.observeByJob(jobId)
+
+    suspend fun replaceAll(jobId: String, materials: List<Pair<String, String>>) {
+        dao.deleteByJob(jobId)
+        dao.upsertAll(
+            materials.mapIndexed { index, (name, quantity) ->
+                MaterialEntity(
+                    id = UUID.randomUUID().toString(),
+                    jobId = jobId,
+                    name = name,
+                    quantity = quantity.ifBlank { null },
+                    position = index,
+                )
+            }
+        )
     }
 }
