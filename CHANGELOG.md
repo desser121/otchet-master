@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PDF generation on device and sharing via system menu.
 - Job history list on the home screen.
 
+## [0.7.5] - 2026-08-13
+
+### Fixed
+
+- Home screen header now uses the Material 3 top app bar, so it no longer slides under the system status bar on phones with edge-to-edge displays.
+
 ## [0.7.4] - 2026-08-13
 
 ### Fixed
