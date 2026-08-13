@@ -98,11 +98,14 @@ fun ReportScreen(
     fun generateAndSave(uri: android.net.Uri) {
         val profile = profile ?: return
         val job = job ?: return
-        val report = report ?: return
-        if (description.isBlank()) {
-            Toast.makeText(context, "Добавьте описание работ", Toast.LENGTH_SHORT).show()
-            return
-        }
+        val report = report ?: ReportEntity(
+            id = UUID.randomUUID().toString(),
+            jobId = jobId,
+            workPerformed = description,
+            source = "manual",
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis(),
+        )
         generating = true
         scope.launch {
             try {
@@ -176,11 +179,14 @@ fun ReportScreen(
     fun generateAndPreview() {
         val profile = profile ?: return
         val job = job ?: return
-        val report = report ?: return
-        if (description.isBlank()) {
-            Toast.makeText(context, "Добавьте описание работ", Toast.LENGTH_SHORT).show()
-            return
-        }
+        val report = report ?: ReportEntity(
+            id = UUID.randomUUID().toString(),
+            jobId = jobId,
+            workPerformed = description,
+            source = "manual",
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis(),
+        )
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
             androidx.core.content.ContextCompat.checkSelfPermission(
                 context,
@@ -225,11 +231,14 @@ fun ReportScreen(
     fun generateAndShare() {
         val profile = profile ?: return
         val job = job ?: return
-        val report = report ?: return
-        if (description.isBlank()) {
-            Toast.makeText(context, "Добавьте описание работ", Toast.LENGTH_SHORT).show()
-            return
-        }
+        val report = report ?: ReportEntity(
+            id = UUID.randomUUID().toString(),
+            jobId = jobId,
+            workPerformed = description,
+            source = "manual",
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis(),
+        )
         generating = true
         scope.launch {
             val pdf = try {

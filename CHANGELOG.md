@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PDF generation on device and sharing via system menu.
 - Job history list on the home screen.
 
+## [0.7.4] - 2026-08-13
+
+### Fixed
+
+- PDF buttons no longer silently do nothing when the report has no description yet: a default report is used and the PDF is always generated.
+- The description field is now optional: a PDF with date, address, client and photos is generated even when the work description is empty.
+
 ## [0.7.3] - 2026-08-13
 
 ### Fixed

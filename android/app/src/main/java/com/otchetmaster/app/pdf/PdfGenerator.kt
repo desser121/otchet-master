@@ -104,15 +104,17 @@ object PdfGenerator {
         y += 10
 
         // Work performed
-        newPageIfNeeded(60f)
-        canvas.drawText("Выполненные работы", MARGIN, y, headerLabel)
-        y += 16
-        report.workPerformed.split("\n").forEach { line ->
-            newPageIfNeeded(16f)
-            canvas.drawText(line.ifBlank { " " }, MARGIN + 10f, y, bodyPaint)
-            y += 15
+        if (report.workPerformed.isNotBlank()) {
+            newPageIfNeeded(60f)
+            canvas.drawText("Выполненные работы", MARGIN, y, headerLabel)
+            y += 16
+            report.workPerformed.split("\n").forEach { line ->
+                newPageIfNeeded(16f)
+                canvas.drawText(line.ifBlank { " " }, MARGIN + 10f, y, bodyPaint)
+                y += 15
+            }
+            y += 12
         }
-        y += 12
 
         // Materials
         if (materials.isNotEmpty()) {
