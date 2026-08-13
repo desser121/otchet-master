@@ -10,12 +10,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 
 sealed interface UpdateUiState {
     data object Idle : UpdateUiState
     data object Checking : UpdateUiState
     data object Downloading : UpdateUiState
     data class UpdateAvailable(val version: String) : UpdateUiState
+    data class Downloaded(val version: String) : UpdateUiState
     data class Error(val message: String) : UpdateUiState
 }
 
@@ -59,7 +61,7 @@ class HomeViewModel(
         }
     }
 
-    fun downloadAndInstall() {
+    fun downloadUpdate() {
         val state = _updateState.value as? UpdateUiState.UpdateAvailable ?: return
         _updateState.value = UpdateUiState.Downloading
         viewModelScope.launch {
@@ -70,15 +72,25 @@ class HomeViewModel(
                     return@launch
                 }
                 val file = updateManager.downloadApk(apkUrl)
-                val started = updateManager.installApk(file)
-                if (started) {
-                    _updateState.value = UpdateUiState.Idle
-                } else {
-                    _updateState.value = UpdateUiState.Error("Разрешите установку из этого источника в настройках")
-                }
+                _updateState.value = UpdateUiState.Downloaded(state.version)
             } catch (e: Exception) {
-                _updateState.value = UpdateUiState.Error("Ошибка при установке обновления")
+                _updateState.value = UpdateUiState.Error("Ошибка при скачивании обновления")
             }
+        }
+    }
+
+    fun installUpdate() {
+        val state = _updateState.value as? UpdateUiState.Downloaded ?: return
+        val file = updateManager.downloadedApkFile()
+        if (file == null || !file.exists()) {
+            _updateState.value = UpdateUiState.Error("Файл обновления не найден")
+            return
+        }
+        val started = updateManager.installApk(file)
+        if (started) {
+            _updateState.value = UpdateUiState.Idle
+        } else {
+            _updateState.value = UpdateUiState.Error("Разрешите установку из этого источника в настройках")
         }
     }
 
