@@ -95,19 +95,28 @@ fun HomeScreen(
             when (val state = updateState) {
                 is UpdateUiState.UpdateAvailable -> {
                     UpdateBanner(
-                        version = state.version,
-                        downloading = false,
-                        onUpdate = { viewModel.downloadAndInstall() },
+                        state = state,
+                        onUpdate = { viewModel.downloadUpdate() },
+                        onInstall = { viewModel.installUpdate() },
                         onDismiss = { viewModel.dismissUpdate() }
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
                 is UpdateUiState.Downloading -> {
                     UpdateBanner(
-                        version = "",
-                        downloading = true,
+                        state = UpdateUiState.Downloading,
                         onUpdate = {},
+                        onInstall = {},
                         onDismiss = {}
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+                is UpdateUiState.Downloaded -> {
+                    UpdateBanner(
+                        state = state,
+                        onUpdate = {},
+                        onInstall = { viewModel.installUpdate() },
+                        onDismiss = { viewModel.dismissUpdate() }
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
@@ -162,9 +171,9 @@ fun HomeScreen(
 
 @Composable
 private fun UpdateBanner(
-    version: String,
-    downloading: Boolean,
+    state: UpdateUiState,
     onUpdate: () -> Unit,
+    onInstall: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -175,26 +184,54 @@ private fun UpdateBanner(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (downloading) {
+            if (state is UpdateUiState.Downloading) {
                 CircularProgressIndicator(modifier = Modifier.size(28.dp))
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (downloading) "Скачивание обновления…" else "Доступна версия $version",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                if (!downloading) {
-                    Text(
-                        text = "Нажмите «Обновить», чтобы установить",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                when (state) {
+                    is UpdateUiState.UpdateAvailable -> {
+                        Text(
+                            text = "Доступна версия ${state.version}",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = "Скачайте обновление и установите вручную",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    is UpdateUiState.Downloading -> {
+                        Text(
+                            text = "Скачивание обновления…",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    is UpdateUiState.Downloaded -> {
+                        Text(
+                            text = "Скачано ${state.version}",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = "Нажмите «Установить», чтобы обновить",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    else -> {}
                 }
             }
-            if (!downloading) {
-                Button(onClick = onUpdate) {
-                    Text("Обновить")
+            when (state) {
+                is UpdateUiState.UpdateAvailable -> {
+                    Button(onClick = onUpdate) {
+                        Text("Скачать")
+                    }
                 }
+                is UpdateUiState.Downloaded -> {
+                    Button(onClick = onInstall) {
+                        Text("Установить")
+                    }
+                }
+                else -> {}
             }
         }
     }

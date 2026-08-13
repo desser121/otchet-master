@@ -43,6 +43,9 @@ class UpdateManager(private val context: Context) {
 
     private val currentVersion = BuildConfig.VERSION_NAME
 
+    @Volatile
+    private var downloadedApk: File? = null
+
     /** Запрашивает последний релиз с GitHub и определяет, доступно ли обновление. */
     suspend fun checkForUpdate(): UpdateInfo = withContext(Dispatchers.IO) {
         val request = Request.Builder()
@@ -77,8 +80,12 @@ class UpdateManager(private val context: Context) {
                 target.outputStream().use { output -> input.copyTo(output) }
             }
         }
+        downloadedApk = target
         target
     }
+
+    /** Возвращает ранее скачанный APK. */
+    fun downloadedApkFile(): File? = downloadedApk
 
     /** Открывает системный диалог установки для скачанного APK. */
     fun installApk(apkFile: File): Boolean {

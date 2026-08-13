@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PDF generation on device and sharing via system menu.
 - Job history list on the home screen.
 
+## [0.7.1] - 2026-08-13
+
+### Changed
+
+- Update flow split into two explicit steps: "Download" then "Install" (no automatic install after download), reducing Play Protect concerns.
+
 ## [0.7.0] - 2026-08-13
 
 ### Added
