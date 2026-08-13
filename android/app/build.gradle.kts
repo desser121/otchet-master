@@ -16,8 +16,8 @@ android {
         applicationId = "com.otchetmaster.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = (project.findProperty("versionCode") as String?)?.toIntOrNull() ?: 6
+        versionName = (project.findProperty("versionName") as String?) ?: "0.6.0"
     }
 
     signingConfigs {
