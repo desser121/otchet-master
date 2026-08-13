@@ -11,8 +11,14 @@ import com.otchetmaster.app.data.ProfileRepository
 import com.otchetmaster.app.data.ReportRepository
 import com.otchetmaster.app.data.local.OtchetDatabase
 import com.otchetmaster.app.updater.UpdateManager
+import com.otchetmaster.app.updater.UpdateNotifier
 
 class OtchetMasterApplication : Application() {
+
+    override fun onCreate() {
+        super.onCreate()
+        UpdateNotifier.init(this, updateManager)
+    }
 
     val database: OtchetDatabase by lazy {
         Room.databaseBuilder(
