@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PDF generation on device and sharing via system menu.
 - Job history list on the home screen.
 
+## [0.7.2] - 2026-08-13
+
+### Changed
+
+- Removed the preset material catalog quick-select from the job screen (manual input remains).
+- Renamed the copy button to "Создать копию работы".
+
 ## [0.7.1] - 2026-08-13
 
 ### Changed

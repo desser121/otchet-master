@@ -66,7 +66,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.otchetmaster.app.data.JobRepository
-import com.otchetmaster.app.data.MaterialCatalog
 import com.otchetmaster.app.data.MaterialRepository
 import com.otchetmaster.app.data.PhotoRepository
 import com.otchetmaster.app.data.ReportRepository
@@ -135,7 +134,6 @@ fun JobDetailsScreen(
     var photoCounter by remember(jobId) { mutableStateOf(0) }
     var captionPhoto by remember(jobId) { mutableStateOf<PhotoEntity?>(null) }
     var captionText by rememberSaveable(jobId) { mutableStateOf("") }
-    var catalogQuery by rememberSaveable(jobId) { mutableStateOf("") }
 
     val pickPhoto = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -376,35 +374,6 @@ fun JobDetailsScreen(
                     Icon(Icons.Filled.Add, contentDescription = "Добавить материал")
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = catalogQuery,
-                onValueChange = { catalogQuery = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Быстрый выбор из каталога") },
-                singleLine = true
-            )
-            val filteredPresets = MaterialCatalog.presets.filter {
-                catalogQuery.isBlank() || it.name.lowercase().contains(catalogQuery.lowercase())
-            }
-            filteredPresets.take(8).forEach { preset ->
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            val updated = materials.map { it.name to (it.quantity ?: "") }
-                                .plus(preset.name to preset.quantity)
-                            materialRepository.replaceAll(jobId, updated)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = if (preset.quantity.isNotBlank()) "${preset.name} — ${preset.quantity}" else preset.name,
-                        modifier = Modifier.fillMaxWidth(),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
@@ -424,7 +393,7 @@ fun JobDetailsScreen(
             ) {
                 Icon(Icons.Filled.ContentCopy, contentDescription = null)
                 Spacer(modifier = Modifier.size(8.dp))
-                Text("Копировать как новую работу")
+                Text("Создать копию работы")
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
