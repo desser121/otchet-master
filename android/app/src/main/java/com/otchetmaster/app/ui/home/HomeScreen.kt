@@ -1,5 +1,6 @@
 package com.otchetmaster.app.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -34,22 +36,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.otchetmaster.app.data.local.JobEntity
+import com.otchetmaster.app.data.local.JobStatus
 import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
     onNewJob: () -> Unit,
+    onBackup: () -> Unit,
     onJobClick: (String) -> Unit,
     viewModelFactory: ViewModelProvider.Factory,
 ) {
     val viewModel: HomeViewModel = viewModel(factory = viewModelFactory)
     val updateState by viewModel.updateState.collectAsState()
     val jobs by viewModel.jobs.collectAsState()
+    val stats by viewModel.stats.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -73,6 +79,9 @@ fun HomeScreen(
                 )
                 IconButton(onClick = { viewModel.checkForUpdate() }) {
                     Icon(Icons.Filled.Refresh, contentDescription = "Проверить обновления")
+                }
+                IconButton(onClick = onBackup) {
+                    Icon(Icons.Filled.CloudUpload, contentDescription = "Бэкап данных")
                 }
             }
         }
@@ -118,6 +127,8 @@ fun HomeScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("История работ", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    StatsRow(stats = stats)
                     Spacer(modifier = Modifier.height(8.dp))
                     if (jobs.isEmpty()) {
                         Text(
@@ -226,6 +237,40 @@ private fun JobListItem(job: JobEntity, onClick: () -> Unit) {
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@Composable
+private fun StatsRow(stats: Map<String, Int>) {
+    val items = listOf(
+        JobStatus.IN_PROGRESS to "В работе",
+        JobStatus.DONE to "Готово",
+        JobStatus.SENT to "Отправлено",
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items.forEach { (key, label) ->
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = (stats[key.name] ?: 0).toString(),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

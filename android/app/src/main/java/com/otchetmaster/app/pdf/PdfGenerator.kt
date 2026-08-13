@@ -82,7 +82,7 @@ object PdfGenerator {
         }
 
         // Header
-        canvas.drawText("ОТЧЁТ О ВЫПОЛНЕННЫХ РАБОТАХ", MARGIN, y, titlePaint)
+        canvas.drawText("АКТ О ВЫПОЛНЕННЫХ РАБОТАХ", MARGIN, y, titlePaint)
         y += 24
         canvas.drawText("Мастер: ${profile.name}", MARGIN, y, subPaint)
         y += 16
@@ -100,6 +100,7 @@ object PdfGenerator {
         infoRow("Дата:", job.date)
         infoRow("Адрес:", job.address)
         infoRow("Клиент:", job.clientName + if (job.clientPhone.isNotBlank()) " (${job.clientPhone})" else "")
+        infoRow("Статус:", com.otchetmaster.app.data.local.JobStatus.fromName(job.status).label)
         y += 10
 
         // Work performed
@@ -146,6 +147,10 @@ object PdfGenerator {
                         )
                         bmp.recycle()
                         y += drawH + 14
+                        if (photo.caption.isNotBlank()) {
+                            canvas.drawText(photo.caption, MARGIN + 10f, y, subPaint)
+                            y += 16
+                        }
                     }
                 } catch (_: Exception) {
                     canvas.drawText("(не удалось загрузить фото)", MARGIN, y, subPaint)

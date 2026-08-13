@@ -2,6 +2,7 @@ package com.otchetmaster.app.data
 
 import com.otchetmaster.app.data.local.JobDao
 import com.otchetmaster.app.data.local.JobEntity
+import com.otchetmaster.app.data.local.JobStatus
 import com.otchetmaster.app.data.local.MaterialDao
 import com.otchetmaster.app.data.local.MaterialEntity
 import com.otchetmaster.app.data.local.MasterProfileDao
@@ -28,6 +29,9 @@ class JobRepository(private val dao: JobDao) {
 
     fun observeJob(id: String): Flow<JobEntity?> = dao.observeById(id)
 
+    suspend fun statusCounts(): Map<String, Int> =
+        dao.statusCounts().associate { it.status to it.cnt }
+
     suspend fun create(date: String, address: String, clientName: String, clientPhone: String): String {
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
@@ -50,6 +54,28 @@ class JobRepository(private val dao: JobDao) {
     }
 
     suspend fun getById(id: String): JobEntity? = dao.getById(id)
+
+    suspend fun setStatus(id: String, status: String) {
+        val job = dao.getById(id) ?: return
+        dao.upsert(job.copy(status = status, updatedAt = System.currentTimeMillis()))
+    }
+
+    /** Создаёт копию работы (данные без фото/отчёта/материалов — их копирует вызывающий код). */
+    suspend fun copy(id: String): String {
+        val source = dao.getById(id) ?: throw IllegalStateException("Работа не найдена")
+        val newId = UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+        dao.upsert(
+            source.copy(
+                id = newId,
+                status = JobStatus.IN_PROGRESS.name,
+                createdAt = now,
+                updatedAt = now,
+                syncStatus = "LOCAL",
+            )
+        )
+        return newId
+    }
 }
 
 class PhotoRepository(private val dao: PhotoDao) {
@@ -66,6 +92,11 @@ class PhotoRepository(private val dao: PhotoDao) {
                 createdAt = now,
             )
         )
+    }
+
+    suspend fun setCaption(photoId: String, caption: String) {
+        val photo = dao.getById(photoId) ?: return
+        dao.upsert(photo.copy(caption = caption))
     }
 
     suspend fun remove(photo: PhotoEntity) {
@@ -87,6 +118,8 @@ class ReportRepository(private val dao: ReportDao) {
 
 class MaterialRepository(private val dao: MaterialDao) {
     fun observeByJob(jobId: String): Flow<List<MaterialEntity>> = dao.observeByJob(jobId)
+
+    suspend fun getByJob(jobId: String): List<MaterialEntity> = dao.getByJob(jobId)
 
     suspend fun replaceAll(jobId: String, materials: List<Pair<String, String>>) {
         dao.deleteByJob(jobId)

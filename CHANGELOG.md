@@ -15,6 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PDF generation on device and sharing via system menu.
 - Job history list on the home screen.
 
+## [0.7.0] - 2026-08-13
+
+### Added
+
+- Job status: in progress / done / sent to client, switchable from the job screen.
+- Photo captions: add or edit a caption under each photo, included in the PDF.
+- "Copy as new job": duplicates the job with photos, materials and report.
+- Material catalog: quick add from 28 common building materials.
+- PDF header changed to "Акт выполненных работ" with status and photo captions.
+- Save PDF to a file (in addition to sharing).
+- Statistics on the home screen: counters by status.
+- Local backup: export / import all data as a JSON file.
+
 ## [0.3.0] - 2026-08-12
 
 ### Added
