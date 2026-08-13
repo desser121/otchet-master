@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PDF generation on device and sharing via system menu.
 - Job history list on the home screen.
 
+## [0.7.6] - 2026-08-13
+
+### Added
+
+- System notification when a new app version is released: checked on app launch, tapping it opens the app.
+
 ## [0.7.5] - 2026-08-13
 
 ### Fixed
