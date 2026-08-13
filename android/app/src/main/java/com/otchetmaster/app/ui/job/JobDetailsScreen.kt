@@ -22,9 +22,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -242,38 +239,42 @@ fun JobDetailsScreen(
             Text("Фото работ", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(photos, key = { it.id }) { photo ->
-                    PhotoTile(
-                        photo = photo,
-                        onRemove = {
-                            scope.launch { photoRepository.remove(photo) }
-                        }
-                    )
-                }
-                item(key = "add") {
-                    AddPhotoTile(
-                        onClick = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                        onTakePhoto = {
-                            val file = File(context.filesDir, "jobs/$jobId/photo_${photoCounter}.jpg")
-                            file.parentFile?.mkdirs()
-                            cameraUri.value = androidx.core.content.FileProvider.getUriForFile(
-                                context,
-                                "${context.packageName}.fileprovider",
-                                file
-                            )
-                            cameraUri.value?.let { uri ->
-                                takePhoto.launch(uri)
+            val gridItems: List<PhotoGridItem> = photos.map { PhotoGridItem.Photo(it) } + PhotoGridItem.Add
+            gridItems.chunked(3).forEach { rowItems ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    rowItems.forEach { item ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            when (item) {
+                                is PhotoGridItem.Photo -> PhotoTile(
+                                    photo = item.photo,
+                                    onRemove = { scope.launch { photoRepository.remove(item.photo) } }
+                                )
+                                PhotoGridItem.Add -> AddPhotoTile(
+                                    onClick = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                                    onTakePhoto = {
+                                        val file = File(context.filesDir, "jobs/$jobId/photo_${photoCounter}.jpg")
+                                        file.parentFile?.mkdirs()
+                                        cameraUri.value = androidx.core.content.FileProvider.getUriForFile(
+                                            context,
+                                            "${context.packageName}.fileprovider",
+                                            file
+                                        )
+                                        cameraUri.value?.let { uri ->
+                                            takePhoto.launch(uri)
+                                        }
+                                    }
+                                )
                             }
                         }
-                    )
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text("Материалы", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
@@ -420,4 +421,9 @@ private fun AddPhotoTile(onClick: () -> Unit, onTakePhoto: () -> Unit) {
             }
         }
     }
+}
+
+private sealed interface PhotoGridItem {
+    data class Photo(val photo: com.otchetmaster.app.data.local.PhotoEntity) : PhotoGridItem
+    data object Add : PhotoGridItem
 }
