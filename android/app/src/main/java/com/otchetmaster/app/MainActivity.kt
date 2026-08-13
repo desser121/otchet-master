@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -19,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.otchetmaster.app.data.ThemeMode
 import com.otchetmaster.app.ui.home.HomeScreen
 import com.otchetmaster.app.ui.home.HomeViewModelFactory
 import com.otchetmaster.app.ui.job.JobDetailsScreen
@@ -26,6 +28,7 @@ import com.otchetmaster.app.ui.job.NewJobScreen
 import com.otchetmaster.app.ui.report.ReportScreen
 import com.otchetmaster.app.ui.backup.BackupScreen
 import com.otchetmaster.app.ui.screens.ProfileScreen
+import com.otchetmaster.app.ui.settings.SettingsScreen
 import com.otchetmaster.app.ui.theme.OtchetMasterTheme
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -35,7 +38,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val app = application as OtchetMasterApplication
         setContent {
-            OtchetMasterTheme {
+            val themeMode by app.settingsRepository.themeMode.collectAsState()
+            val darkTheme = when (themeMode) {
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+            }
+            OtchetMasterTheme(darkTheme = darkTheme) {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     OtchetMasterApp(app = app)
                 }
@@ -82,11 +91,18 @@ fun OtchetMasterApp(app: OtchetMasterApplication) {
                 viewModelFactory = HomeViewModelFactory(app.updateManager, app.jobRepository),
                 onNewJob = { navController.navigate("new-job") },
                 onBackup = { navController.navigate("backup") },
+                onSettings = { navController.navigate("settings") },
                 onJobClick = { jobId ->
                     navController.navigate("job/$jobId") {
                         popUpTo("home")
                     }
                 }
+            )
+        }
+        composable("settings") {
+            SettingsScreen(
+                settingsRepository = app.settingsRepository,
+                onBack = { navController.popBackStack() }
             )
         }
         composable("backup") {

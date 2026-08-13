@@ -20,6 +20,7 @@ data class ReportEntity(
     val workPerformed: String,
     val materialsJson: String? = null,
     val notes: String? = null,
+    val workPrice: Double? = null,
     val source: String = "ai",
     val pdfLocalPath: String? = null,
     val createdAt: Long,

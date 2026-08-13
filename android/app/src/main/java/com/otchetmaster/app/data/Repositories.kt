@@ -32,7 +32,13 @@ class JobRepository(private val dao: JobDao) {
     suspend fun statusCounts(): Map<String, Int> =
         dao.statusCounts().associate { it.status to it.cnt }
 
-    suspend fun create(date: String, address: String, clientName: String, clientPhone: String): String {
+    suspend fun create(
+        date: String,
+        address: String,
+        clientName: String,
+        clientPhone: String,
+        project: String? = null,
+    ): String {
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         dao.upsert(
@@ -42,6 +48,7 @@ class JobRepository(private val dao: JobDao) {
                 address = address,
                 clientName = clientName,
                 clientPhone = clientPhone,
+                project = project?.ifBlank { null },
                 createdAt = now,
                 updatedAt = now,
             )
@@ -121,15 +128,16 @@ class MaterialRepository(private val dao: MaterialDao) {
 
     suspend fun getByJob(jobId: String): List<MaterialEntity> = dao.getByJob(jobId)
 
-    suspend fun replaceAll(jobId: String, materials: List<Pair<String, String>>) {
+    suspend fun replaceAll(jobId: String, materials: List<Triple<String, String, Double?>>) {
         dao.deleteByJob(jobId)
         dao.upsertAll(
-            materials.mapIndexed { index, (name, quantity) ->
+            materials.mapIndexed { index, (name, quantity, price) ->
                 MaterialEntity(
                     id = UUID.randomUUID().toString(),
                     jobId = jobId,
                     name = name,
                     quantity = quantity.ifBlank { null },
+                    price = price,
                     position = index,
                 )
             }

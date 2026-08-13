@@ -100,6 +100,14 @@ fun JobDetailsScreen(
 
     var description by rememberSaveable(jobId) { mutableStateOf(report?.workPerformed ?: "") }
     var materialInput by rememberSaveable(jobId) { mutableStateOf("") }
+    var editingProject by rememberSaveable(jobId) { mutableStateOf(false) }
+    var projectDraft by rememberSaveable(jobId) { mutableStateOf("") }
+
+    fun parsePrice(raw: String): Double? =
+        raw.replace(",", ".").toDoubleOrNull()?.takeIf { it >= 0 }
+
+    fun formatPrice(value: Double): String =
+        if (value == value.toLong().toDouble()) value.toLong().toString() else "%.2f".format(value)
 
     LaunchedEffect(report) {
         val r = report
@@ -152,9 +160,10 @@ fun JobDetailsScreen(
         if (success) {
             scope.launch {
                 val position = photos.size
-                val path = context.filesDir.resolve("jobs/$jobId/photo_${photoCounter}.jpg")
+                val file = context.filesDir.resolve("jobs/$jobId/photo_${photoCounter}.jpg")
                 photoCounter++
-                photoRepository.add(jobId, path.absolutePath, position)
+                val path = compressPhotoFile(context, file)
+                photoRepository.add(jobId, path, position)
             }
         }
     }
@@ -210,7 +219,7 @@ fun JobDetailsScreen(
             val sourceMaterials = materialRepository.getByJob(current.id)
             materialRepository.replaceAll(
                 newId,
-                sourceMaterials.map { it.name to (it.quantity ?: "") }
+                sourceMaterials.map { Triple(it.name, it.quantity ?: "", it.price) }
             )
             Toast.makeText(context, "Работа скопирована", Toast.LENGTH_SHORT).show()
         }
@@ -266,6 +275,23 @@ fun JobDetailsScreen(
                         if (currentJob.clientPhone.isNotBlank()) {
                             Spacer(modifier = Modifier.height(4.dp))
                             Text("Телефон: ${currentJob.clientPhone}", style = MaterialTheme.typography.bodyLarge)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Проект: ${currentJob.project?.ifBlank { null } ?: "—"}",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            TextButton(
+                                onClick = {
+                                    projectDraft = currentJob.project ?: ""
+                                    editingProject = true
+                                }
+                            ) {
+                                Text("изменить")
+                            }
                         }
                     }
                 }
@@ -338,11 +364,25 @@ fun JobDetailsScreen(
             Text("Материалы", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
             materials.forEach { m ->
-                Text(
-                    text = if (m.quantity != null) "• ${m.name} — ${m.quantity}" else "• ${m.name}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(vertical = 2.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (m.quantity != null) "• ${m.name} — ${m.quantity}" else "• ${m.name}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f)
+                    )
+                    m.price?.let { price ->
+                        Text(
+                            text = "${formatPrice(price)} ₽",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(
@@ -353,18 +393,21 @@ fun JobDetailsScreen(
                     value = materialInput,
                     onValueChange = { materialInput = it },
                     modifier = Modifier.weight(1f),
-                    label = { Text("Название — количество") },
+                    label = { Text("Название — количество — цена") },
                     singleLine = true
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
                     onClick = {
                         if (materialInput.isNotBlank()) {
-                            val name = materialInput.substringBefore("—").trim()
-                            val quantity = materialInput.substringAfter("—", "").trim()
+                            val parts = materialInput.split("—").map { it.trim() }
+                            val name = parts.getOrNull(0).orEmpty()
+                            val quantity = parts.getOrNull(1).orEmpty()
+                            val price = parts.getOrNull(2)?.let { parsePrice(it) }
                             scope.launch {
-                                val updated = materials.map { it.name to (it.quantity ?: "") }
-                                    .plus(name to quantity)
+                                val updated = materials.map {
+                                    Triple(it.name, it.quantity ?: "", it.price)
+                                }.plus(Triple(name, quantity, price))
                                 materialRepository.replaceAll(jobId, updated)
                             }
                             materialInput = ""
@@ -397,6 +440,38 @@ fun JobDetailsScreen(
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    if (editingProject) {
+        AlertDialog(
+            onDismissRequest = { editingProject = false },
+            title = { Text("Проект / папка") },
+            text = {
+                OutlinedTextField(
+                    value = projectDraft,
+                    onValueChange = { projectDraft = it },
+                    label = { Text("Название проекта") },
+                    placeholder = { Text("Например: Квартира на Ленина 5") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    scope.launch {
+                        val current = job ?: return@launch
+                        jobRepository.update(current.copy(project = projectDraft.ifBlank { null }))
+                    }
+                    editingProject = false
+                }) {
+                    Text("Сохранить")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { editingProject = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 
     captionPhoto?.let { photo ->
@@ -436,21 +511,33 @@ private suspend fun savePhotoToStorage(context: Context, uri: Uri, jobId: String
         val input = context.contentResolver.openInputStream(uri)
             ?: throw IllegalStateException("Не удалось открыть файл")
         input.use { ins ->
-            val bmp = BitmapFactory.decodeStream(ins)
+            BitmapFactory.decodeStream(ins)
+                ?.let { compressBitmap(it, file) }
                 ?: throw IllegalStateException("Не удалось прочитать изображение")
-            val max = 2048
-            val scale = minOf(1f, max.toFloat() / maxOf(bmp.width, bmp.height))
-            val scaled = if (scale < 1f) {
-                Bitmap.createScaledBitmap(bmp, (bmp.width * scale).toInt(), (bmp.height * scale).toInt(), true)
-            } else bmp
-            FileOutputStream(file).use { out ->
-                scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, out)
-            }
-            if (scaled !== bmp) scaled.recycle()
-            bmp.recycle()
         }
         file.absolutePath
     }
+}
+
+private suspend fun compressPhotoFile(context: Context, file: File): String {
+    return withContext(Dispatchers.IO) {
+        val bmp = BitmapFactory.decodeFile(file.absolutePath)
+        if (bmp != null) compressBitmap(bmp, file)
+        file.absolutePath
+    }
+}
+
+private fun compressBitmap(bmp: Bitmap, outFile: File) {
+    val max = 1600
+    val scale = minOf(1f, max.toFloat() / maxOf(bmp.width, bmp.height))
+    val scaled = if (scale < 1f) {
+        Bitmap.createScaledBitmap(bmp, (bmp.width * scale).toInt(), (bmp.height * scale).toInt(), true)
+    } else bmp
+    FileOutputStream(outFile).use { out ->
+        scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out)
+    }
+    if (scaled !== bmp) scaled.recycle()
+    bmp.recycle()
 }
 
 @Composable

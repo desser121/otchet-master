@@ -1,6 +1,7 @@
 package com.otchetmaster.app.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,14 +15,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,8 +38,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +59,7 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     onNewJob: () -> Unit,
     onBackup: () -> Unit,
+    onSettings: () -> Unit,
     onJobClick: (String) -> Unit,
     viewModelFactory: ViewModelProvider.Factory,
 ) {
@@ -61,6 +69,17 @@ fun HomeScreen(
     val stats by viewModel.stats.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    var selectedProject by rememberSaveable { mutableStateOf<String?>(null) }
+    val projects = remember(jobs) {
+        jobs.mapNotNull { it.project }
+            .distinct()
+            .sorted()
+    }
+    val visibleJobs = remember(jobs, selectedProject) {
+        if (selectedProject == null) jobs
+        else jobs.filter { it.project == selectedProject }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.checkForUpdate()
@@ -82,6 +101,9 @@ fun HomeScreen(
                     }
                     IconButton(onClick = onBackup) {
                         Icon(Icons.Filled.CloudUpload, contentDescription = "Бэкап данных")
+                    }
+                    IconButton(onClick = onSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Настройки")
                     }
                 }
             )
@@ -139,16 +161,43 @@ fun HomeScreen(
                     Text("История работ", style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     StatsRow(stats = stats)
+                    if (projects.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = selectedProject == null,
+                                onClick = { selectedProject = null },
+                                label = { Text("Все") }
+                            )
+                            projects.forEach { project ->
+                                FilterChip(
+                                    selected = selectedProject == project,
+                                    onClick = {
+                                        selectedProject = if (selectedProject == project) null else project
+                                    },
+                                    label = { Text(project) }
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
-                    if (jobs.isEmpty()) {
+                    if (visibleJobs.isEmpty()) {
                         Text(
-                            text = "Пока нет работ. Нажмите «Новая работа»",
+                            text = if (selectedProject == null)
+                                "Пока нет работ. Нажмите «Новая работа»"
+                            else
+                                "В этом проекте пока нет работ",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
                         LazyColumn(modifier = Modifier.height(360.dp)) {
-                            items(jobs, key = { it.id }) { job ->
+                            items(visibleJobs, key = { it.id }) { job ->
                                 JobListItem(job = job, onClick = { onJobClick(job.id) })
                             }
                         }
@@ -262,13 +311,22 @@ private fun JobListItem(job: JobEntity, onClick: () -> Unit) {
                 Text(
                     text = listOf(
                         job.date,
-                        job.clientName.ifBlank { job.clientPhone.ifBlank { "Клиент не указан" } }
+                        job.clientName.ifBlank { job.clientPhone.ifBlank { "Клиент не указан" } },
                     ).filter { it.isNotBlank() }.joinToString(" · "),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                job.project?.let { project ->
+                    Text(
+                        text = project,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,

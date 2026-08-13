@@ -39,6 +39,7 @@ fun NewJobScreen(
     var address by rememberSaveable { mutableStateOf("") }
     var clientName by rememberSaveable { mutableStateOf("") }
     var clientPhone by rememberSaveable { mutableStateOf("") }
+    var project by rememberSaveable { mutableStateOf("") }
     var saving by rememberSaveable { mutableStateOf(false) }
 
     val canSave = address.isNotBlank() && clientName.isNotBlank() && !saving
@@ -89,13 +90,23 @@ fun NewJobScreen(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
             )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = project,
+                onValueChange = { project = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Проект / папка (необязательно)") },
+                placeholder = { Text("Например: Квартира на Ленина 5") },
+                singleLine = true
+            )
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
                 onClick = {
                     saving = true
                     scope.launch {
-                        val id = jobRepository.create(date, address, clientName, clientPhone)
+                        val id = jobRepository.create(date, address, clientName, clientPhone, project)
                         onJobCreated(id)
                     }
                 },

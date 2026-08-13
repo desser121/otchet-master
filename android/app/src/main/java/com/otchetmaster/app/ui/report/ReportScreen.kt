@@ -46,9 +46,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.otchetmaster.app.data.JobRepository
@@ -83,8 +85,19 @@ fun ReportScreen(
     val report by reportRepository.observeByJob(jobId).collectAsState(initial = null)
 
     var description by remember(jobId) { mutableStateOf("") }
+    var workPriceInput by remember(jobId) { mutableStateOf("") }
     var materialInput by remember(jobId) { mutableStateOf("") }
     var generating by remember(jobId) { mutableStateOf(false) }
+
+    fun parsePrice(raw: String): Double? =
+        raw.replace(",", ".").toDoubleOrNull()?.takeIf { it >= 0 }
+
+    fun totalMaterials(): Double = materials.sumOf { it.price ?: 0.0 }
+
+    fun totalAmount(): Double = (workPriceInput.replace(",", ".").toDoubleOrNull() ?: 0.0) + totalMaterials()
+
+    fun formatPrice(value: Double): String =
+        if (value == value.toLong().toDouble()) value.toLong().toString() else "%.2f".format(value)
 
     fun isValidPdf(file: File): Boolean {
         return try {
@@ -109,7 +122,7 @@ fun ReportScreen(
         generating = true
         scope.launch {
             try {
-                val pdf = PdfGenerator.generate(context, profile, job, photos, materials, report.copy(workPerformed = description))
+                val pdf = PdfGenerator.generate(context, profile, job, photos, materials, report.copy(workPerformed = description, workPrice = parsePrice(workPriceInput)))
                 if (!isValidPdf(pdf)) {
                     Toast.makeText(context, "PDF сформирован некорректно: ${pdf.length()} байт", Toast.LENGTH_LONG).show()
                     generating = false
@@ -140,6 +153,32 @@ fun ReportScreen(
 
     LaunchedEffect(report) {
         description = report?.workPerformed ?: ""
+        workPriceInput = report?.workPrice?.let {
+            if (it == it.toLong().toDouble()) it.toLong().toString() else it.toString()
+        } ?: ""
+    }
+
+    fun saveWorkPrice(raw: String) {
+        val r = report
+        val price = parsePrice(raw)
+        scope.launch {
+            if (r == null) {
+                val now = System.currentTimeMillis()
+                reportRepository.upsert(
+                    ReportEntity(
+                        id = UUID.randomUUID().toString(),
+                        jobId = jobId,
+                        workPerformed = description,
+                        workPrice = price,
+                        source = "manual",
+                        createdAt = now,
+                        updatedAt = now,
+                    )
+                )
+            } else {
+                reportRepository.upsert(r.copy(workPrice = price))
+            }
+        }
     }
 
     lateinit var storagePermissionLauncher: androidx.activity.result.ActivityResultLauncher<String>
@@ -199,7 +238,7 @@ fun ReportScreen(
         generating = true
         scope.launch {
             try {
-                val pdf = PdfGenerator.generate(context, profile, job, photos, materials, report.copy(workPerformed = description))
+                val pdf = PdfGenerator.generate(context, profile, job, photos, materials, report.copy(workPerformed = description, workPrice = parsePrice(workPriceInput)))
                 if (!isValidPdf(pdf)) {
                     Toast.makeText(context, "PDF сформирован некорректно: ${pdf.length()} байт", Toast.LENGTH_LONG).show()
                     generating = false
@@ -242,7 +281,7 @@ fun ReportScreen(
         generating = true
         scope.launch {
             val pdf = try {
-                PdfGenerator.generate(context, profile, job, photos, materials, report.copy(workPerformed = description))
+                PdfGenerator.generate(context, profile, job, photos, materials, report.copy(workPerformed = description, workPrice = parsePrice(workPriceInput)))
             } catch (e: Exception) {
                 Toast.makeText(context, "Ошибка при создании PDF", Toast.LENGTH_SHORT).show()
                 generating = false
@@ -337,6 +376,13 @@ fun ReportScreen(
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyLarge
                     )
+                    m.price?.let { price ->
+                        Text(
+                            text = "${formatPrice(price)} ₽",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -348,19 +394,21 @@ fun ReportScreen(
                     value = materialInput,
                     onValueChange = { materialInput = it },
                     modifier = Modifier.weight(1f),
-                    label = { Text("Название — количество") },
+                    label = { Text("Название — количество — цена") },
                     singleLine = true
                 )
                 Spacer(modifier = Modifier.size(8.dp))
                 IconButton(
                     onClick = {
                         if (materialInput.isNotBlank()) {
-                            val name = materialInput.substringBefore("—").trim()
-                            val quantity = materialInput.substringAfter("—", "").trim()
+                            val parts = materialInput.split("—").map { it.trim() }
+                            val name = parts.getOrNull(0).orEmpty()
+                            val quantity = parts.getOrNull(1).orEmpty()
+                            val price = parts.getOrNull(2)?.let { parsePrice(it) }
                             scope.launch {
                                 val updated = materials.map {
-                                    it.name to (it.quantity ?: "")
-                                }.plus(name to quantity)
+                                    Triple(it.name, it.quantity ?: "", it.price)
+                                }.plus(Triple(name, quantity, price))
                                 materialRepository.replaceAll(jobId, updated)
                             }
                             materialInput = ""
@@ -368,6 +416,52 @@ fun ReportScreen(
                     }
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = "Добавить материал")
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text("Стоимость работы, ₽", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = workPriceInput,
+                onValueChange = {
+                    workPriceInput = it
+                    saveWorkPrice(it)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Например: 15000") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Материалы", style = MaterialTheme.typography.bodyLarge)
+                        Text("${formatPrice(totalMaterials())} ₽", style = MaterialTheme.typography.bodyLarge)
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Работа", style = MaterialTheme.typography.bodyLarge)
+                        Text("${formatPrice(parsePrice(workPriceInput) ?: 0.0)} ₽", style = MaterialTheme.typography.bodyLarge)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    androidx.compose.material3.HorizontalDivider()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Итого", style = MaterialTheme.typography.titleMedium)
+                        Text("${formatPrice(totalAmount())} ₽", style = MaterialTheme.typography.titleMedium)
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))

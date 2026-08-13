@@ -125,9 +125,39 @@ object PdfGenerator {
                 newPageIfNeeded(16f)
                 val text = if (m.quantity != null) "${m.name} — ${m.quantity}" else m.name
                 canvas.drawText("• $text", MARGIN + 10f, y, bodyPaint)
+                if (m.price != null && m.price > 0) {
+                    canvas.drawText(formatMoney(m.price), PAGE_W - MARGIN - 80f, y, bodyPaint)
+                }
                 y += 15
             }
-            y += 12
+            val materialsTotal = materials.sumOf { it.price ?: 0.0 }
+            if (materialsTotal > 0) {
+                y += 4
+                newPageIfNeeded(16f)
+                canvas.drawText("Материалы:", MARGIN + 10f, y, bodyPaint)
+                canvas.drawText(formatMoney(materialsTotal), PAGE_W - MARGIN - 80f, y, subPaint)
+                y += 16
+            }
+        }
+
+        // Cost summary
+        val workPrice = report.workPrice ?: 0.0
+        val materialsTotal = materials.sumOf { it.price ?: 0.0 }
+        if (workPrice > 0 || materialsTotal > 0) {
+            newPageIfNeeded(70f)
+            canvas.drawText("Стоимость", MARGIN, y, headerLabel)
+            y += 16
+            if (workPrice > 0) {
+                newPageIfNeeded(16f)
+                canvas.drawText("Стоимость работ:", MARGIN + 10f, y, bodyPaint)
+                canvas.drawText(formatMoney(workPrice), PAGE_W - MARGIN - 80f, y, bodyPaint)
+                y += 16
+            }
+            val total = workPrice + materialsTotal
+            newPageIfNeeded(20f)
+            canvas.drawText("ИТОГО:", MARGIN + 10f, y, headerLabel)
+            canvas.drawText(formatMoney(total), PAGE_W - MARGIN - 80f, y, headerLabel)
+            y += 18
         }
 
         // Photos
@@ -171,4 +201,14 @@ object PdfGenerator {
         doc.close()
         return outFile
     }
+}
+
+private fun formatMoney(value: Double): String {
+    val rounded = Math.round(value * 100.0) / 100.0
+    val text = if (rounded == Math.floor(rounded) && !rounded.isInfinite()) {
+        rounded.toLong().toString()
+    } else {
+        String.format("%.2f", rounded)
+    }
+    return "$text ₽"
 }

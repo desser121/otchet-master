@@ -13,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MaterialEntity::class,
         ReportEntity::class,
     ],
-    version = 2,
+    version = 4,
     exportSchema = true,
 )
 abstract class OtchetDatabase : RoomDatabase() {
@@ -28,6 +28,19 @@ abstract class OtchetDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE jobs ADD COLUMN status TEXT NOT NULL DEFAULT 'IN_PROGRESS'")
                 db.execSQL("ALTER TABLE photos ADD COLUMN caption TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE materials ADD COLUMN price REAL")
+                db.execSQL("ALTER TABLE reports ADD COLUMN workPrice REAL")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE jobs ADD COLUMN project TEXT")
             }
         }
     }

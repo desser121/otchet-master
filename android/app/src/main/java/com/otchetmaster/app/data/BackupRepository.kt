@@ -29,6 +29,7 @@ data class BackupJob(
     @SerialName("client_name") val clientName: String,
     @SerialName("client_phone") val clientPhone: String,
     @SerialName("status") val status: String,
+    @SerialName("project") val project: String? = null,
     @SerialName("created_at") val createdAt: Long,
     @SerialName("updated_at") val updatedAt: Long,
 )
@@ -49,6 +50,7 @@ data class BackupMaterial(
     @SerialName("job_id") val jobId: String,
     @SerialName("name") val name: String,
     @SerialName("quantity") val quantity: String? = null,
+    @SerialName("price") val price: Double? = null,
     @SerialName("position") val position: Int,
 )
 
@@ -60,6 +62,7 @@ data class BackupReport(
     @SerialName("materials_json") val materialsJson: String? = null,
     @SerialName("notes") val notes: String? = null,
     @SerialName("source") val source: String,
+    @SerialName("work_price") val workPrice: Double? = null,
     @SerialName("created_at") val createdAt: Long,
     @SerialName("updated_at") val updatedAt: Long,
 )
@@ -82,7 +85,8 @@ class BackupRepository(
                 BackupJob(
                     id = it.id, date = it.date, address = it.address,
                     clientName = it.clientName, clientPhone = it.clientPhone,
-                    status = it.status, createdAt = it.createdAt, updatedAt = it.updatedAt,
+                    status = it.status, project = it.project,
+                    createdAt = it.createdAt, updatedAt = it.updatedAt,
                 )
             },
             photos = photoDao.getAll().map {
@@ -94,14 +98,14 @@ class BackupRepository(
             materials = materialDao.getAll().map {
                 BackupMaterial(
                     id = it.id, jobId = it.jobId, name = it.name,
-                    quantity = it.quantity, position = it.position,
+                    quantity = it.quantity, price = it.price, position = it.position,
                 )
             },
             reports = reportDao.getAll().map {
                 BackupReport(
                     id = it.id, jobId = it.jobId, workPerformed = it.workPerformed,
                     materialsJson = it.materialsJson, notes = it.notes, source = it.source,
-                    createdAt = it.createdAt, updatedAt = it.updatedAt,
+                    workPrice = it.workPrice, createdAt = it.createdAt, updatedAt = it.updatedAt,
                 )
             },
         )
@@ -120,7 +124,8 @@ class BackupRepository(
                     com.otchetmaster.app.data.local.JobEntity(
                         id = j.id, date = j.date, address = j.address,
                         clientName = j.clientName, clientPhone = j.clientPhone,
-                        status = j.status, createdAt = j.createdAt, updatedAt = j.updatedAt,
+                        status = j.status, project = j.project,
+                        createdAt = j.createdAt, updatedAt = j.updatedAt,
                     )
                 )
                 count++
@@ -139,7 +144,7 @@ class BackupRepository(
                 listOf(
                     com.otchetmaster.app.data.local.MaterialEntity(
                         id = m.id, jobId = m.jobId, name = m.name,
-                        quantity = m.quantity, position = m.position,
+                        quantity = m.quantity, price = m.price, position = m.position,
                     )
                 )
             )
@@ -149,7 +154,7 @@ class BackupRepository(
                 com.otchetmaster.app.data.local.ReportEntity(
                     id = r.id, jobId = r.jobId, workPerformed = r.workPerformed,
                     materialsJson = r.materialsJson, notes = r.notes, source = r.source,
-                    createdAt = r.createdAt, updatedAt = r.updatedAt,
+                    workPrice = r.workPrice, createdAt = r.createdAt, updatedAt = r.updatedAt,
                 )
             )
         }

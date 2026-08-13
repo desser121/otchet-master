@@ -9,6 +9,7 @@ import com.otchetmaster.app.data.MaterialRepository
 import com.otchetmaster.app.data.PhotoRepository
 import com.otchetmaster.app.data.ProfileRepository
 import com.otchetmaster.app.data.ReportRepository
+import com.otchetmaster.app.data.SettingsRepository
 import com.otchetmaster.app.data.local.OtchetDatabase
 import com.otchetmaster.app.updater.UpdateManager
 import com.otchetmaster.app.updater.UpdateNotifier
@@ -27,6 +28,8 @@ class OtchetMasterApplication : Application() {
             "otchet-master.db"
         )
             .addMigrations(OtchetDatabase.MIGRATION_1_2)
+            .addMigrations(OtchetDatabase.MIGRATION_2_3)
+            .addMigrations(OtchetDatabase.MIGRATION_3_4)
             .build()
     }
 
@@ -61,6 +64,10 @@ class OtchetMasterApplication : Application() {
 
     val updateManager: UpdateManager by lazy {
         UpdateManager(this)
+    }
+
+    val settingsRepository: SettingsRepository by lazy {
+        SettingsRepository(this)
     }
 
     companion object {

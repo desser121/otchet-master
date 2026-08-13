@@ -12,6 +12,7 @@ data class JobEntity(
     val clientName: String,
     val clientPhone: String,
     val status: String = "IN_PROGRESS",
+    val project: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
     val syncStatus: String = "LOCAL",

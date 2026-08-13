@@ -19,5 +19,6 @@ data class MaterialEntity(
     val jobId: String,
     val name: String,
     val quantity: String? = null,
+    val price: Double? = null,
     val position: Int,
 )

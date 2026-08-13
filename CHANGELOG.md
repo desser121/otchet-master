@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- App theme switcher (system / light / dark) in a new Settings screen.
+- Material cost per item (entered as "name — quantity — price") and work cost field on the report screen.
+- Cost summary card with materials, work, and total ("like in wallets") on the report screen.
+- PDF now shows material prices, work cost, and an ИТОГО total line.
+- Projects / folders: jobs can be grouped into named projects, with a filter on the home screen and inline editing.
+- Photos are now compressed harder (1600 px max, JPEG 80) and camera photos are compressed too.
 - Job creation: date, address, client name and phone (Room storage).
 - Job details screen: description (text or voice dictation), photos (gallery / camera), materials.
 - Manual report screen: editable description and materials.
