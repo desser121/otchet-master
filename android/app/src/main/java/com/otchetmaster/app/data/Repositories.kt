@@ -4,6 +4,10 @@ import com.otchetmaster.app.data.local.JobDao
 import com.otchetmaster.app.data.local.JobEntity
 import com.otchetmaster.app.data.local.MasterProfileDao
 import com.otchetmaster.app.data.local.MasterProfileEntity
+import com.otchetmaster.app.data.local.PhotoDao
+import com.otchetmaster.app.data.local.PhotoEntity
+import com.otchetmaster.app.data.local.ReportDao
+import com.otchetmaster.app.data.local.ReportEntity
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
@@ -44,4 +48,37 @@ class JobRepository(private val dao: JobDao) {
     }
 
     suspend fun getById(id: String): JobEntity? = dao.getById(id)
+}
+
+class PhotoRepository(private val dao: PhotoDao) {
+    fun observeByJob(jobId: String): Flow<List<PhotoEntity>> = dao.observeByJob(jobId)
+
+    suspend fun add(jobId: String, localPath: String, position: Int) {
+        val now = System.currentTimeMillis()
+        dao.upsert(
+            PhotoEntity(
+                id = UUID.randomUUID().toString(),
+                jobId = jobId,
+                localPath = localPath,
+                position = position,
+                createdAt = now,
+            )
+        )
+    }
+
+    suspend fun remove(photo: PhotoEntity) {
+        dao.delete(photo)
+    }
+
+    suspend fun getByJob(jobId: String): List<PhotoEntity> = dao.getByJob(jobId)
+}
+
+class ReportRepository(private val dao: ReportDao) {
+    fun observeByJob(jobId: String): Flow<ReportEntity?> = dao.observeByJob(jobId)
+
+    suspend fun getByJob(jobId: String): ReportEntity? = dao.getByJob(jobId)
+
+    suspend fun upsert(report: ReportEntity) {
+        dao.upsert(report)
+    }
 }
