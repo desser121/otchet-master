@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +29,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -45,6 +47,7 @@ import com.otchetmaster.app.data.local.JobEntity
 import com.otchetmaster.app.data.local.JobStatus
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNewJob: () -> Unit,
@@ -66,24 +69,22 @@ fun HomeScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "ОтчётМастер",
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = { viewModel.checkForUpdate() }) {
-                    Icon(Icons.Filled.Refresh, contentDescription = "Проверить обновления")
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "ОтчётМастер",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.checkForUpdate() }) {
+                        Icon(Icons.Filled.Refresh, contentDescription = "Проверить обновления")
+                    }
+                    IconButton(onClick = onBackup) {
+                        Icon(Icons.Filled.CloudUpload, contentDescription = "Бэкап данных")
+                    }
                 }
-                IconButton(onClick = onBackup) {
-                    Icon(Icons.Filled.CloudUpload, contentDescription = "Бэкап данных")
-                }
-            }
+            )
         }
     ) { innerPadding ->
         Column(
