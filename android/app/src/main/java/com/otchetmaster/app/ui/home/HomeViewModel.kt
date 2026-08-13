@@ -2,6 +2,8 @@ package com.otchetmaster.app.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.otchetmaster.app.data.JobRepository
+import com.otchetmaster.app.data.local.JobEntity
 import com.otchetmaster.app.updater.UpdateInfo
 import com.otchetmaster.app.updater.UpdateManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,10 +21,20 @@ sealed interface UpdateUiState {
 
 class HomeViewModel(
     private val updateManager: UpdateManager,
+    jobRepository: JobRepository,
 ) : ViewModel() {
+
+    private val _jobs = MutableStateFlow<List<JobEntity>>(emptyList())
+    val jobs: StateFlow<List<JobEntity>> = _jobs.asStateFlow()
 
     private val _updateState = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
     val updateState: StateFlow<UpdateUiState> = _updateState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            jobRepository.jobs.collect { _jobs.value = it }
+        }
+    }
 
     fun checkForUpdate() {
         _updateState.value = UpdateUiState.Checking
