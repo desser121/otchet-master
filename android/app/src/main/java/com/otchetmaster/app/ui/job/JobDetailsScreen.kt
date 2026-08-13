@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,17 +30,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.Card
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,12 +62,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.otchetmaster.app.data.JobRepository
+import com.otchetmaster.app.data.MaterialCatalog
 import com.otchetmaster.app.data.MaterialRepository
 import com.otchetmaster.app.data.PhotoRepository
 import com.otchetmaster.app.data.ReportRepository
+import com.otchetmaster.app.data.local.JobStatus
 import com.otchetmaster.app.data.local.PhotoEntity
 import com.otchetmaster.app.data.local.ReportEntity
 import kotlinx.coroutines.Dispatchers
@@ -124,6 +133,9 @@ fun JobDetailsScreen(
     }
 
     var photoCounter by remember(jobId) { mutableStateOf(0) }
+    var captionPhoto by remember(jobId) { mutableStateOf<PhotoEntity?>(null) }
+    var captionText by rememberSaveable(jobId) { mutableStateOf("") }
+    var catalogQuery by rememberSaveable(jobId) { mutableStateOf("") }
 
     val pickPhoto = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -178,6 +190,34 @@ fun JobDetailsScreen(
         speechLauncher.launch(intent)
     }
 
+    fun copyJob() {
+        val current = job ?: return
+        scope.launch {
+            val newId = jobRepository.copy(current.id)
+            val sourcePhotos = photoRepository.getByJob(current.id)
+            sourcePhotos.forEachIndexed { index, photo ->
+                photoRepository.add(newId, photo.localPath, index)
+            }
+            val sourceReport = reportRepository.getByJob(current.id)
+            if (sourceReport != null) {
+                reportRepository.upsert(
+                    sourceReport.copy(
+                        id = UUID.randomUUID().toString(),
+                        jobId = newId,
+                        createdAt = System.currentTimeMillis(),
+                        updatedAt = System.currentTimeMillis()
+                    )
+                )
+            }
+            val sourceMaterials = materialRepository.getByJob(current.id)
+            materialRepository.replaceAll(
+                newId,
+                sourceMaterials.map { it.name to (it.quantity ?: "") }
+            )
+            Toast.makeText(context, "Работа скопирована", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -197,20 +237,37 @@ fun JobDetailsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            job?.let {
+            job?.let { currentJob ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Дата: ${it.date}", style = MaterialTheme.typography.bodyLarge)
+                        Text("Статус: ${JobStatus.fromName(currentJob.status).label}", style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            JobStatus.entries.forEach { status ->
+                                FilterChip(
+                                    selected = currentJob.status == status.name,
+                                    onClick = {
+                                        scope.launch { jobRepository.setStatus(currentJob.id, status.name) }
+                                    },
+                                    label = { Text(status.label) }
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Дата: ${currentJob.date}", style = MaterialTheme.typography.bodyLarge)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("Адрес: ${it.address.ifBlank { "—" }}", style = MaterialTheme.typography.bodyLarge)
+                        Text("Адрес: ${currentJob.address.ifBlank { "—" }}", style = MaterialTheme.typography.bodyLarge)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "Клиент: ${it.clientName.ifBlank { "—" }}",
+                            "Клиент: ${currentJob.clientName.ifBlank { "—" }}",
                             style = MaterialTheme.typography.bodyLarge
                         )
-                        if (it.clientPhone.isNotBlank()) {
+                        if (currentJob.clientPhone.isNotBlank()) {
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("Телефон: ${it.clientPhone}", style = MaterialTheme.typography.bodyLarge)
+                            Text("Телефон: ${currentJob.clientPhone}", style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
@@ -252,6 +309,10 @@ fun JobDetailsScreen(
                             when (item) {
                                 is PhotoGridItem.Photo -> PhotoTile(
                                     photo = item.photo,
+                                    onClick = {
+                                        captionText = item.photo.caption
+                                        captionPhoto = item.photo
+                                    },
                                     onRemove = { scope.launch { photoRepository.remove(item.photo) } }
                                 )
                                 PhotoGridItem.Add -> AddPhotoTile(
@@ -315,6 +376,35 @@ fun JobDetailsScreen(
                     Icon(Icons.Filled.Add, contentDescription = "Добавить материал")
                 }
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = catalogQuery,
+                onValueChange = { catalogQuery = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Быстрый выбор из каталога") },
+                singleLine = true
+            )
+            val filteredPresets = MaterialCatalog.presets.filter {
+                catalogQuery.isBlank() || it.name.lowercase().contains(catalogQuery.lowercase())
+            }
+            filteredPresets.take(8).forEach { preset ->
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            val updated = materials.map { it.name to (it.quantity ?: "") }
+                                .plus(preset.name to preset.quantity)
+                            materialRepository.replaceAll(jobId, updated)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = if (preset.quantity.isNotBlank()) "${preset.name} — ${preset.quantity}" else preset.name,
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
@@ -325,8 +415,47 @@ fun JobDetailsScreen(
             ) {
                 Text("Создать отчёт", style = MaterialTheme.typography.titleMedium)
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { copyJob() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Icon(Icons.Filled.ContentCopy, contentDescription = null)
+                Spacer(modifier = Modifier.size(8.dp))
+                Text("Копировать как новую работу")
+            }
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    captionPhoto?.let { photo ->
+        AlertDialog(
+            onDismissRequest = { captionPhoto = null },
+            title = { Text("Подпись к фото") },
+            text = {
+                OutlinedTextField(
+                    value = captionText,
+                    onValueChange = { captionText = it },
+                    label = { Text("Например: ванная, до работ") },
+                    singleLine = false
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    scope.launch { photoRepository.setCaption(photo.id, captionText) }
+                    captionPhoto = null
+                }) {
+                    Text("Сохранить")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { captionPhoto = null }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 }
 
@@ -356,26 +485,43 @@ private suspend fun savePhotoToStorage(context: Context, uri: Uri, jobId: String
 }
 
 @Composable
-private fun PhotoTile(photo: PhotoEntity, onRemove: () -> Unit) {
-    Box {
-        AsyncImage(
-            model = File(photo.localPath),
-            contentDescription = "Фото работы",
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentScale = ContentScale.Crop
-        )
-        IconButton(
-            onClick = onRemove,
-            modifier = Modifier
-                .size(32.dp)
-                .align(Alignment.TopEnd)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), CircleShape)
-        ) {
-            Icon(Icons.Filled.Close, contentDescription = "Удалить", modifier = Modifier.size(16.dp))
+private fun PhotoTile(
+    photo: PhotoEntity,
+    onClick: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    Column {
+        Box {
+            AsyncImage(
+                model = File(photo.localPath),
+                contentDescription = "Фото работы",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable(onClick = onClick),
+                contentScale = ContentScale.Crop
+            )
+            IconButton(
+                onClick = onRemove,
+                modifier = Modifier
+                    .size(32.dp)
+                    .align(Alignment.TopEnd)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), CircleShape)
+            ) {
+                Icon(Icons.Filled.Close, contentDescription = "Удалить", modifier = Modifier.size(16.dp))
+            }
+        }
+        if (photo.caption.isNotBlank()) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = photo.caption,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

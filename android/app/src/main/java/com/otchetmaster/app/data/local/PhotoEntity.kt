@@ -20,6 +20,7 @@ data class PhotoEntity(
     val localPath: String,
     val cloudUrl: String? = null,
     val position: Int,
+    val caption: String = "",
     val createdAt: Long,
     val syncStatus: String = "LOCAL",
 )

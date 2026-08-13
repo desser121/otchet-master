@@ -2,6 +2,8 @@ package com.otchetmaster.app.ui.report
 
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -23,6 +26,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -73,6 +77,35 @@ fun ReportScreen(
     var description by remember(jobId) { mutableStateOf("") }
     var materialInput by remember(jobId) { mutableStateOf("") }
     var generating by remember(jobId) { mutableStateOf(false) }
+
+    fun generateAndSave(uri: android.net.Uri) {
+        val profile = profile ?: return
+        val job = job ?: return
+        val report = report ?: return
+        if (description.isBlank()) {
+            Toast.makeText(context, "Добавьте описание работ", Toast.LENGTH_SHORT).show()
+            return
+        }
+        generating = true
+        scope.launch {
+            try {
+                val pdf = PdfGenerator.generate(context, profile, job, photos, materials, report.copy(workPerformed = description))
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    pdf.inputStream().use { it.copyTo(out) }
+                }
+                Toast.makeText(context, "PDF сохранён", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, "Ошибка при сохранении PDF", Toast.LENGTH_SHORT).show()
+            }
+            generating = false
+        }
+    }
+
+    val saveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri ->
+        if (uri != null) generateAndSave(uri)
+    }
 
     LaunchedEffect(report) {
         description = report?.workPerformed ?: ""
@@ -219,6 +252,22 @@ fun ReportScreen(
                 Icon(Icons.Filled.Share, contentDescription = null)
                 Spacer(modifier = Modifier.size(8.dp))
                 Text(if (generating) "Создание PDF…" else "Создать PDF и отправить")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    saveLauncher.launch(
+                        "Отчёт_${(job?.clientName ?: "").ifBlank { "работы" }}.pdf"
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                enabled = !generating
+            ) {
+                Icon(Icons.Filled.Save, contentDescription = null)
+                Spacer(modifier = Modifier.size(8.dp))
+                Text("Сохранить PDF в файл")
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(

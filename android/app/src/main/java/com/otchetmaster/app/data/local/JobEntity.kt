@@ -11,7 +11,19 @@ data class JobEntity(
     val address: String,
     val clientName: String,
     val clientPhone: String,
+    val status: String = "IN_PROGRESS",
     val createdAt: Long,
     val updatedAt: Long,
     val syncStatus: String = "LOCAL",
 )
+
+enum class JobStatus(val label: String) {
+    IN_PROGRESS("В работе"),
+    DONE("Готово"),
+    SENT("Отправлен клиенту");
+
+    companion object {
+        fun fromName(name: String): JobStatus =
+            entries.firstOrNull { it.name == name } ?: IN_PROGRESS
+    }
+}
