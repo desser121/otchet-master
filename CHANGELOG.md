@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-08-13
+
 ### Added
 
 - App theme switcher (system / light / dark) in a new Settings screen.
@@ -15,11 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PDF now shows material prices, work cost, and an ИТОГО total line.
 - Projects / folders: jobs can be grouped into named projects, with a filter on the home screen and inline editing.
 - Photos are now compressed harder (1600 px max, JPEG 80) and camera photos are compressed too.
-- Job creation: date, address, client name and phone (Room storage).
-- Job details screen: description (text or voice dictation), photos (gallery / camera), materials.
-- Manual report screen: editable description and materials.
-- PDF generation on device and sharing via system menu.
-- Job history list on the home screen.
+
+### Note
+
+- The changelog below up to 0.7.6 documents earlier releases; initial feature list is preserved under Unreleased history.
 
 ## [0.7.6] - 2026-08-13
 
