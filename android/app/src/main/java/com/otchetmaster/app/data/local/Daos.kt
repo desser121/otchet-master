@@ -7,6 +7,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
+data class StatusCount(val status: String, val cnt: Int)
+
 @Dao
 interface MasterProfileDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -26,6 +28,12 @@ interface JobDao {
 
     @Query("SELECT * FROM jobs ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<JobEntity>>
+
+    @Query("SELECT * FROM jobs ORDER BY createdAt DESC")
+    suspend fun getAll(): List<JobEntity>
+
+    @Query("SELECT status AS status, COUNT(*) AS cnt FROM jobs GROUP BY status")
+    suspend fun statusCounts(): List<StatusCount>
 
     @Query("SELECT * FROM jobs WHERE id = :id")
     suspend fun getById(id: String): JobEntity?
@@ -48,6 +56,12 @@ interface PhotoDao {
     @Query("SELECT * FROM photos WHERE jobId = :jobId ORDER BY position ASC")
     suspend fun getByJob(jobId: String): List<PhotoEntity>
 
+    @Query("SELECT * FROM photos WHERE id = :id")
+    suspend fun getById(id: String): PhotoEntity?
+
+    @Query("SELECT * FROM photos")
+    suspend fun getAll(): List<PhotoEntity>
+
     @Delete
     suspend fun delete(photo: PhotoEntity)
 }
@@ -59,6 +73,12 @@ interface MaterialDao {
 
     @Query("SELECT * FROM materials WHERE jobId = :jobId ORDER BY position ASC")
     fun observeByJob(jobId: String): Flow<List<MaterialEntity>>
+
+    @Query("SELECT * FROM materials WHERE jobId = :jobId ORDER BY position ASC")
+    suspend fun getByJob(jobId: String): List<MaterialEntity>
+
+    @Query("SELECT * FROM materials")
+    suspend fun getAll(): List<MaterialEntity>
 
     @Query("DELETE FROM materials WHERE jobId = :jobId")
     suspend fun deleteByJob(jobId: String)
@@ -74,4 +94,7 @@ interface ReportDao {
 
     @Query("SELECT * FROM reports WHERE jobId = :jobId LIMIT 1")
     suspend fun getByJob(jobId: String): ReportEntity?
+
+    @Query("SELECT * FROM reports")
+    suspend fun getAll(): List<ReportEntity>
 }

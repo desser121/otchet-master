@@ -3,6 +3,7 @@ package com.otchetmaster.app
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
+import com.otchetmaster.app.data.BackupRepository
 import com.otchetmaster.app.data.JobRepository
 import com.otchetmaster.app.data.MaterialRepository
 import com.otchetmaster.app.data.PhotoRepository
@@ -18,7 +19,9 @@ class OtchetMasterApplication : Application() {
             this,
             OtchetDatabase::class.java,
             "otchet-master.db"
-        ).build()
+        )
+            .addMigrations(OtchetDatabase.MIGRATION_1_2)
+            .build()
     }
 
     val profileRepository: ProfileRepository by lazy {
@@ -39,6 +42,15 @@ class OtchetMasterApplication : Application() {
 
     val materialRepository: MaterialRepository by lazy {
         MaterialRepository(database.materialDao())
+    }
+
+    val backupRepository: BackupRepository by lazy {
+        BackupRepository(
+            database.jobDao(),
+            database.photoDao(),
+            database.materialDao(),
+            database.reportDao(),
+        )
     }
 
     val updateManager: UpdateManager by lazy {

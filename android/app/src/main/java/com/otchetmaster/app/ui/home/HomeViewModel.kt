@@ -27,12 +27,18 @@ class HomeViewModel(
     private val _jobs = MutableStateFlow<List<JobEntity>>(emptyList())
     val jobs: StateFlow<List<JobEntity>> = _jobs.asStateFlow()
 
+    private val _stats = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val stats: StateFlow<Map<String, Int>> = _stats.asStateFlow()
+
     private val _updateState = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
     val updateState: StateFlow<UpdateUiState> = _updateState.asStateFlow()
 
     init {
         viewModelScope.launch {
             jobRepository.jobs.collect { _jobs.value = it }
+        }
+        viewModelScope.launch {
+            jobRepository.jobs.collect { _stats.value = jobRepository.statusCounts() }
         }
     }
 

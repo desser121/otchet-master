@@ -20,6 +20,7 @@ import com.otchetmaster.app.ui.home.HomeViewModelFactory
 import com.otchetmaster.app.ui.job.JobDetailsScreen
 import com.otchetmaster.app.ui.job.NewJobScreen
 import com.otchetmaster.app.ui.report.ReportScreen
+import com.otchetmaster.app.ui.backup.BackupScreen
 import com.otchetmaster.app.ui.screens.ProfileScreen
 import com.otchetmaster.app.ui.theme.OtchetMasterTheme
 import kotlinx.coroutines.launch
@@ -69,11 +70,18 @@ fun OtchetMasterApp(app: OtchetMasterApplication) {
             HomeScreen(
                 viewModelFactory = HomeViewModelFactory(app.updateManager, app.jobRepository),
                 onNewJob = { navController.navigate("new-job") },
+                onBackup = { navController.navigate("backup") },
                 onJobClick = { jobId ->
                     navController.navigate("job/$jobId") {
                         popUpTo("home")
                     }
                 }
+            )
+        }
+        composable("backup") {
+            BackupScreen(
+                backupRepository = app.backupRepository,
+                onBack = { navController.popBackStack() }
             )
         }
         composable("new-job") {
