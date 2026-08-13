@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.room.Room
 import com.otchetmaster.app.data.JobRepository
+import com.otchetmaster.app.data.MaterialRepository
 import com.otchetmaster.app.data.PhotoRepository
 import com.otchetmaster.app.data.ProfileRepository
 import com.otchetmaster.app.data.ReportRepository
@@ -34,6 +35,10 @@ class OtchetMasterApplication : Application() {
 
     val reportRepository: ReportRepository by lazy {
         ReportRepository(database.reportDao())
+    }
+
+    val materialRepository: MaterialRepository by lazy {
+        MaterialRepository(database.materialDao())
     }
 
     val updateManager: UpdateManager by lazy {
