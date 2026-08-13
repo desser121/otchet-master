@@ -1,9 +1,15 @@
 package com.otchetmaster.app.ui.report
 
+import android.content.ContentValues
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
@@ -52,6 +59,7 @@ import com.otchetmaster.app.data.ReportRepository
 import com.otchetmaster.app.data.local.ReportEntity
 import com.otchetmaster.app.pdf.PdfGenerator
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,6 +86,15 @@ fun ReportScreen(
     var materialInput by remember(jobId) { mutableStateOf("") }
     var generating by remember(jobId) { mutableStateOf(false) }
 
+    fun isValidPdf(file: File): Boolean {
+        return try {
+            val header = file.inputStream().use { it.readBytes().take(5) }
+            String(header.toByteArray()).startsWith("%PDF")
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     fun generateAndSave(uri: android.net.Uri) {
         val profile = profile ?: return
         val job = job ?: return
@@ -90,12 +107,23 @@ fun ReportScreen(
         scope.launch {
             try {
                 val pdf = PdfGenerator.generate(context, profile, job, photos, materials, report.copy(workPerformed = description))
-                context.contentResolver.openOutputStream(uri)?.use { out ->
-                    pdf.inputStream().use { it.copyTo(out) }
+                if (!isValidPdf(pdf)) {
+                    Toast.makeText(context, "PDF сформирован некорректно: ${pdf.length()} байт", Toast.LENGTH_LONG).show()
+                    generating = false
+                    return@launch
+                }
+                val out = context.contentResolver.openOutputStream(uri)
+                if (out == null) {
+                    Toast.makeText(context, "Не удалось открыть файл для записи", Toast.LENGTH_LONG).show()
+                    generating = false
+                    return@launch
+                }
+                out.use { out2 ->
+                    pdf.inputStream().use { it.copyTo(out2) }
                 }
                 Toast.makeText(context, "PDF сохранён", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
-                Toast.makeText(context, "Ошибка при сохранении PDF", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Ошибка при сохранении PDF: ${e.message}", Toast.LENGTH_LONG).show()
             }
             generating = false
         }
@@ -109,6 +137,89 @@ fun ReportScreen(
 
     LaunchedEffect(report) {
         description = report?.workPerformed ?: ""
+    }
+
+    lateinit var storagePermissionLauncher: androidx.activity.result.ActivityResultLauncher<String>
+
+    fun saveToDownloads(pdf: File): Uri? {
+        val fileName = pdf.name
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return null
+            val written = context.contentResolver.openOutputStream(uri)?.use { out ->
+                pdf.inputStream().use { it.copyTo(out) }
+            }
+            if (written == null || written == 0L) {
+                context.contentResolver.delete(uri, null, null)
+                return null
+            }
+            values.clear()
+            values.put(MediaStore.Downloads.IS_PENDING, 0)
+            context.contentResolver.update(uri, values, null, null)
+            return uri
+        } else {
+            val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            if (!dir.exists()) dir.mkdirs()
+            val target = File(dir, fileName)
+            pdf.inputStream().use { input ->
+                target.outputStream().use { output -> input.copyTo(output) }
+            }
+            return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", target)
+        }
+    }
+
+    fun generateAndPreview() {
+        val profile = profile ?: return
+        val job = job ?: return
+        val report = report ?: return
+        if (description.isBlank()) {
+            Toast.makeText(context, "Добавьте описание работ", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            storagePermissionLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            return
+        }
+        generating = true
+        scope.launch {
+            try {
+                val pdf = PdfGenerator.generate(context, profile, job, photos, materials, report.copy(workPerformed = description))
+                if (!isValidPdf(pdf)) {
+                    Toast.makeText(context, "PDF сформирован некорректно: ${pdf.length()} байт", Toast.LENGTH_LONG).show()
+                    generating = false
+                    return@launch
+                }
+                saveToDownloads(pdf)
+                val viewUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    pdf
+                )
+                val view = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(viewUri, "application/pdf")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                try {
+                    context.startActivity(view)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "PDF сохранён в Загрузки", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Ошибка при создании PDF", Toast.LENGTH_SHORT).show()
+            }
+            generating = false
+        }
     }
 
     fun generateAndShare() {
@@ -141,6 +252,16 @@ fun ReportScreen(
             }
             context.startActivity(Intent.createChooser(share, "Отправить отчёт"))
             generating = false
+        }
+    }
+
+    storagePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            generateAndPreview()
+        } else {
+            Toast.makeText(context, "Нет разрешения на запись", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -243,35 +364,48 @@ fun ReportScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = { generateAndShare() },
+                onClick = { generateAndPreview() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 enabled = !generating
             ) {
-                Icon(Icons.Filled.Share, contentDescription = null)
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(if (generating) "Создание PDF…" else "Создать PDF и отправить")
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = {
-                    saveLauncher.launch(
-                        "Отчёт_${(job?.clientName ?: "").ifBlank { "работы" }}.pdf"
-                    )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                enabled = !generating
-            ) {
                 Icon(Icons.Filled.Save, contentDescription = null)
                 Spacer(modifier = Modifier.size(8.dp))
-                Text("Сохранить PDF в файл")
+                Text(if (generating) "Создание PDF…" else "Создать PDF")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { generateAndShare() },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    enabled = !generating
+                ) {
+                    Icon(Icons.Filled.Share, contentDescription = null)
+                    Spacer(modifier = Modifier.size(4.dp))
+                    Text("Отправить")
+                }
+                OutlinedButton(
+                    onClick = {
+                        saveLauncher.launch(
+                            "Отчёт_${(job?.clientName ?: "").ifBlank { "работы" }}.pdf"
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    enabled = !generating
+                ) {
+                    Icon(Icons.Filled.FolderOpen, contentDescription = null)
+                    Spacer(modifier = Modifier.size(4.dp))
+                    Text("В файл")
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Ручной режим: отчёт собирается на устройстве, без интернета.",
+                text = "PDF автоматически сохраняется в «Загрузки» и открывается для предпросмотра.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

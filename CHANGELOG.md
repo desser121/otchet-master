@@ -15,6 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PDF generation on device and sharing via system menu.
 - Job history list on the home screen.
 
+## [0.7.3] - 2026-08-13
+
+### Fixed
+
+- PDF is now actually written: saving no longer silently succeeds when the file could not be opened for writing (previously produced a 0-byte "invalid format" PDF).
+- PDF generation is validated (header check and file size) before saving; the real error is shown if generation fails.
+- Added `WRITE_EXTERNAL_STORAGE` (API <= 28) and external path for the PDF viewer.
+
+### Added
+
+- Main "Создать PDF" button: generates, auto-saves to Downloads and opens a preview.
+- PDF preview via system viewer from the app cache.
+- Auto-save to the Downloads folder via MediaStore on Android 10+.
+
 ## [0.7.2] - 2026-08-13
 
 ### Changed
