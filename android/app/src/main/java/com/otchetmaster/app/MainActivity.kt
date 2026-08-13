@@ -17,6 +17,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.otchetmaster.app.ui.home.HomeScreen
 import com.otchetmaster.app.ui.home.HomeViewModelFactory
+import com.otchetmaster.app.ui.job.JobDetailsScreen
 import com.otchetmaster.app.ui.job.NewJobScreen
 import com.otchetmaster.app.ui.screens.PlaceholderScreen
 import com.otchetmaster.app.ui.screens.ProfileScreen
@@ -87,7 +88,13 @@ fun OtchetMasterApp(app: OtchetMasterApplication) {
         }
         composable("job/{jobId}") { entry ->
             val jobId = entry.arguments?.getString("jobId").orEmpty()
-            PlaceholderScreen("Работа $jobId — будет дальше")
+            JobDetailsScreen(
+                jobId = jobId,
+                jobRepository = app.jobRepository,
+                photoRepository = app.photoRepository,
+                reportRepository = app.reportRepository,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

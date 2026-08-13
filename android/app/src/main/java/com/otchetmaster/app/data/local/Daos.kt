@@ -47,6 +47,9 @@ interface PhotoDao {
 
     @Query("SELECT * FROM photos WHERE jobId = :jobId ORDER BY position ASC")
     suspend fun getByJob(jobId: String): List<PhotoEntity>
+
+    @Delete
+    suspend fun delete(photo: PhotoEntity)
 }
 
 @Dao
